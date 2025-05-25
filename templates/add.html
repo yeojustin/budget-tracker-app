@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Add Transaction</h2>
+<form method="POST" action="{{ url_for('add') }}">
+    <label for="type">Type:</label>
+    <select name="type" id="type" required>
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+    </select><br><br>
+
+    <label for="amount">Amount ($):</label>
+    <input type="number" step="0.01" name="amount" id="amount" required><br><br>
+
+    <label for="category">Category:</label>
+    <input type="text" name="category" id="category" required><br><br>
+
+    <label for="description">Description:</label>
+    <input type="text" name="description" id="description" required><br><br>
+
+    <label for="date">Date (optional, format YYYY-MM-DD HH:MM:SS):</label><br>
+    <input type="text" name="date" id="date" placeholder="Leave blank for now"><br><br>
+
+    <button type="submit">Add Transaction</button>
+</form>
+{% endblock %}

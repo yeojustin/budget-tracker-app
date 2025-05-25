@@ -1,0 +1,30 @@
+[
+    {
+        "type": "income",
+        "amount": 1110.0,
+        "category": "hi",
+        "description": "bye",
+        "date": "2025-05-25 12:59:56"
+    },
+    {
+        "type": "income",
+        "amount": 600.0,
+        "category": "hi2",
+        "description": "bye2",
+        "date": "2025-05-25 13:00:16"
+    },
+    {
+        "type": "expense",
+        "amount": 288.0,
+        "category": "for fun",
+        "description": "buy switch 2 from shopee",
+        "date": "2025-05-25 13:01:17"
+    },
+    {
+        "type": "expense",
+        "amount": 10.0,
+        "category": "food",
+        "description": "roti prata",
+        "date": "2025-05-25 13:28:23"
+    }
+]

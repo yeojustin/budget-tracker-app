@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Transaction History</h2>
+
+<form method="get" action="{{ url_for('index') }}">
+    <label for="type">Filter by Type:</label>
+    <select name="type" id="type">
+        <option value="" {% if not filter_type %}selected{% endif %}>All</option>
+        <option value="income" {% if filter_type == "income" %}selected{% endif %}>Income</option>
+        <option value="expense" {% if filter_type == "expense" %}selected{% endif %}>Expense</option>
+    </select>
+
+    <label for="category">Category contains:</label>
+    <input type="text" name="category" id="category" value="{{ filter_category }}">
+
+    <label for="start_date">From Date:</label>
+    <input type="date" name="start_date" id="start_date" value="{{ filter_start }}">
+
+    <label for="end_date">To Date:</label>
+    <input type="date" name="end_date" id="end_date" value="{{ filter_end }}">
+
+    <button type="submit">Filter</button>
+    <a href="{{ url_for('index') }}">Reset</a>
+</form>
+
+<!-- CSV Export Button -->
+<form method="get" action="{{ url_for('export_csv') }}" style="margin-top: 1rem;">
+    <input type="hidden" name="type" value="{{ filter_type }}">
+    <input type="hidden" name="category" value="{{ filter_category }}">
+    <input type="hidden" name="start" value="{{ filter_start }}">
+    <input type="hidden" name="end" value="{{ filter_end }}">
+    <button type="submit">Export as CSV</button>
+</form>
+
+<div style="margin: 10px 0;">
+    <a href="{{ url_for('export_csv', type=filter_type, category=filter_category, start=filter_start, end=filter_end) }}" class="btn">Export Filtered CSV</a>
+    <a href="{{ url_for('export_all_csv') }}" class="btn">Export All CSV</a>
+</div>
+
+{% if transactions %}
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Amount ($)</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for idx, t in transactions %}
+        <tr>
+            <td>{{ t.date }}</td>
+            <td class="{{ t.type }}">{{ t.type.capitalize() }}</td>
+            <td class="{{ t.type }}">{{ ('%.2f'|format(t.amount)) }}</td>
+            <td>{{ t.category }}</td>
+            <td>{{ t.description }}</td>
+            <td>
+                <a href="{{ url_for('edit', idx=idx) }}">Edit</a> |
+                <form method="POST" action="{{ url_for('delete', idx=idx) }}" style="display:inline;" onsubmit="return confirm('Delete this transaction?');">
+                    <button type="submit" style="background:none;border:none;color:red;cursor:pointer;padding:0;">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No transactions recorded yet.</p>
+{% endif %}
+
+{% endblock %}
