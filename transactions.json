@@ -26,5 +26,47 @@
         "category": "food",
         "description": "roti prata",
         "date": "2025-05-25 13:28:23"
+    },
+    {
+        "type": "income",
+        "amount": 3040885567777777.0,
+        "category": "for fun",
+        "description": "buy switch 2 from shopee",
+        "date": "2025-05-25 17:12:57"
+    },
+    {
+        "type": "income",
+        "amount": 3040885567777777.0,
+        "category": "for fun",
+        "description": "buy switch 2 from shopee",
+        "date": "2025-05-25 17:13:24"
+    },
+    {
+        "type": "income",
+        "amount": 30.4,
+        "category": "for fun",
+        "description": "buy switch 2 from shopee",
+        "date": "2025-05-25 17:13:34"
+    },
+    {
+        "type": "expense",
+        "amount": 800.0,
+        "category": "buy ps5",
+        "description": "i buy for my brother",
+        "date": "2025-05-25 17:14:58"
+    },
+    {
+        "type": "income",
+        "amount": 111.0,
+        "category": "income",
+        "description": "buy stuff",
+        "date": "2025-05-25 19:22:49"
+    },
+    {
+        "type": "income",
+        "amount": 111.0,
+        "category": "for fun",
+        "description": "buy switch 2 from shopee",
+        "date": "2025-05-25 19:54:32"
     }
 ]

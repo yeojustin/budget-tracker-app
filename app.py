@@ -1,38 +1,41 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, Response, make_response, session
 import json
 from datetime import datetime
 import os
 import io
 import matplotlib.pyplot as plt
 from collections import defaultdict
-import calendar
+import csv
+import uuid
 
 import matplotlib
-matplotlib.use('Agg')  # using this for the non-GUI backend for Flask
-
-from flask import Response
-import matplotlib.pyplot as plt
-from io import BytesIO
-from collections import defaultdict
-from datetime import datetime
-
-import csv
-from flask import make_response
+matplotlib.use('Agg')  # For non-GUI backend
 
 app = Flask(__name__)
+app.secret_key = "your_very_secret_key_here"  # Replace with a strong secret key
 
-DATA_FILE = "transactions.json"
 CPF_RATE = 0.20
 CPF_CAP = 6000
 
+@app.before_request
+def assign_user_id():
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+
+def get_user_data_file():
+    user_id = session.get('user_id', 'default')
+    return f"transactions_{user_id}.json"
+
 def load_data():
-    if not os.path.exists(DATA_FILE):
+    filename = get_user_data_file()
+    if not os.path.exists(filename):
         return []
-    with open(DATA_FILE, "r") as f:
+    with open(filename, "r") as f:
         return json.load(f)
 
 def save_data(data):
-    with open(DATA_FILE, "w") as f:
+    filename = get_user_data_file()
+    with open(filename, "w") as f:
         json.dump(data, f, indent=4)
 
 def calculate_net_salary(amount):
@@ -40,7 +43,6 @@ def calculate_net_salary(amount):
     cpf = CPF_RATE * capped_amount
     return amount - cpf, cpf
 
-# Helper: find transaction by index
 def find_transaction(idx):
     data = load_data()
     if 0 <= idx < len(data):
@@ -49,7 +51,6 @@ def find_transaction(idx):
 
 @app.route('/')
 def index():
-    # Get filters from query params
     filter_type = request.args.get('type', '').lower()
     filter_category = request.args.get('category', '').lower()
     filter_start = request.args.get('start_date', '')
@@ -59,12 +60,11 @@ def index():
     filtered = []
 
     for i, tx in enumerate(data):
-        # Filters
         if filter_type and tx['type'].lower() != filter_type:
             continue
         if filter_category and filter_category not in tx['category'].lower():
             continue
-        # Date filters
+
         tx_date = datetime.strptime(tx['date'], "%Y-%m-%d %H:%M:%S")
         if filter_start:
             try:
@@ -97,7 +97,6 @@ def add():
         try:
             amount = float(request.form['amount'])
         except ValueError:
-            flash("Invalid amount")
             return redirect(url_for('add'))
 
         category = request.form['category'].strip().lower()
@@ -108,13 +107,11 @@ def add():
                 datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                 date = date_str
             except ValueError:
-                flash("Invalid date format, must be YYYY-MM-DD HH:MM:SS")
                 return redirect(url_for('add'))
         else:
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if type_ not in ['income', 'expense']:
-            flash("Invalid transaction type")
             return redirect(url_for('add'))
 
         data = load_data()
@@ -126,7 +123,6 @@ def add():
             "date": date
         })
         save_data(data)
-        flash("Transaction added!")
         return redirect(url_for('index'))
 
     return render_template("add.html")
@@ -135,7 +131,6 @@ def add():
 def edit(idx):
     tx = find_transaction(idx)
     if not tx:
-        flash("Transaction not found.")
         return redirect(url_for('index'))
 
     if request.method == 'POST':
@@ -143,7 +138,6 @@ def edit(idx):
         try:
             amount = float(request.form['amount'])
         except ValueError:
-            flash("Invalid amount")
             return redirect(url_for('edit', idx=idx))
 
         category = request.form['category'].strip().lower()
@@ -154,13 +148,11 @@ def edit(idx):
                 datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                 date = date_str
             except ValueError:
-                flash("Invalid date format, must be YYYY-MM-DD HH:MM:SS")
                 return redirect(url_for('edit', idx=idx))
         else:
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if type_ not in ['income', 'expense']:
-            flash("Invalid transaction type")
             return redirect(url_for('edit', idx=idx))
 
         data = load_data()
@@ -172,7 +164,6 @@ def edit(idx):
             "date": date
         }
         save_data(data)
-        flash("Transaction updated!")
         return redirect(url_for('index'))
 
     return render_template("edit.html", idx=idx, tx=tx)
@@ -181,11 +172,8 @@ def edit(idx):
 def delete(idx):
     data = load_data()
     if 0 <= idx < len(data):
-        removed = data.pop(idx)
+        data.pop(idx)
         save_data(data)
-        flash(f"Deleted transaction: {removed['description']} (${removed['amount']:.2f})")
-    else:
-        flash("Transaction not found.")
     return redirect(url_for('index'))
 
 @app.route('/summary')
@@ -203,9 +191,8 @@ def summary():
             if category == "salary":
                 capped_amount = min(amount, CPF_CAP)
                 cpf = CPF_RATE * capped_amount
-                net_salary = amount - cpf
+                total_income += amount - cpf
                 cpf_deductions += cpf
-                total_income += net_salary
             else:
                 total_income += amount
 
@@ -230,7 +217,6 @@ def expense_chart():
             categories[cat] += entry["amount"]
 
     if not categories:
-        # Return a placeholder image or 204 no content
         return Response(status=204)
 
     labels = list(categories.keys())
@@ -241,7 +227,7 @@ def expense_chart():
     ax.set_title("Expenses by Category")
     ax.axis('equal')
 
-    img = BytesIO()
+    img = io.BytesIO()
     plt.savefig(img, format='png')
     plt.close(fig)
     img.seek(0)
@@ -250,8 +236,6 @@ def expense_chart():
 @app.route('/income-expense-line.png')
 def income_expense_line_chart():
     data = load_data()
-
-    # Group by month-year
     monthly = defaultdict(lambda: {'income': 0, 'expense': 0})
 
     for entry in data:
@@ -262,7 +246,6 @@ def income_expense_line_chart():
         elif entry['type'] == 'expense':
             monthly[key]['expense'] += entry['amount']
 
-    # Sort by date
     sorted_months = sorted(monthly.keys())
     income_values = [monthly[m]['income'] for m in sorted_months]
     expense_values = [monthly[m]['expense'] for m in sorted_months]
@@ -276,7 +259,7 @@ def income_expense_line_chart():
     ax.legend()
     plt.xticks(rotation=45)
 
-    img = BytesIO()
+    img = io.BytesIO()
     plt.tight_layout()
     plt.savefig(img, format='png')
     plt.close(fig)
@@ -292,7 +275,7 @@ def export_csv():
     end_date = request.args.get("end", "").strip()
 
     filtered = []
-    for i, t in enumerate(data):
+    for t in data:
         if filter_type and t["type"] != filter_type:
             continue
         if filter_category and filter_category not in t["category"].lower():
@@ -317,7 +300,6 @@ def export_csv():
 @app.route("/export_all_csv")
 def export_all_csv():
     data = load_data()
-
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Date", "Type", "Amount", "Category", "Description"])
@@ -328,7 +310,6 @@ def export_all_csv():
     response.headers["Content-Disposition"] = "attachment; filename=all_transactions.csv"
     response.headers["Content-Type"] = "text/csv"
     return response
-
 
 if __name__ == '__main__':
     app.run(debug=True)

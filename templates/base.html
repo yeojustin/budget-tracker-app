@@ -12,13 +12,13 @@
         <a href="{{ url_for('summary') }}">Summary</a>
     </nav>
     {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        <div class="flash">
-            {% for msg in messages %}
-                <p>{{ msg }}</p>
-            {% endfor %}
-        </div>
-    {% endif %}
+        {% if messages %}
+            <div class="flash">
+                {% for msg in messages %}
+                    <p>{{ msg }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
     {% endwith %}
     <hr>
     {% block content %}{% endblock %}

@@ -23,15 +23,6 @@
     <a href="{{ url_for('index') }}">Reset</a>
 </form>
 
-<!-- CSV Export Button -->
-<form method="get" action="{{ url_for('export_csv') }}" style="margin-top: 1rem;">
-    <input type="hidden" name="type" value="{{ filter_type }}">
-    <input type="hidden" name="category" value="{{ filter_category }}">
-    <input type="hidden" name="start" value="{{ filter_start }}">
-    <input type="hidden" name="end" value="{{ filter_end }}">
-    <button type="submit">Export as CSV</button>
-</form>
-
 <div style="margin: 10px 0;">
     <a href="{{ url_for('export_csv', type=filter_type, category=filter_category, start=filter_start, end=filter_end) }}" class="btn">Export Filtered CSV</a>
     <a href="{{ url_for('export_all_csv') }}" class="btn">Export All CSV</a>
