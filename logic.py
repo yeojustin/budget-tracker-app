@@ -1,6 +1,9 @@
 from datetime import datetime
 import csv
-from db import add_transaction, get_transactions, filter_transactions, reset_transactions, init_db
+from db import (
+    add_transaction, get_transactions, reset_transactions,
+    init_db, update_transaction, delete_transaction, filter_advanced
+)
 
 init_db()
 
@@ -23,10 +26,10 @@ def get_all_transactions():
         } for r in raw
     ]
 
-def filter_transactions_by_date(start_date, end_date):
-    start_str = start_date.strftime("%Y-%m-%d 00:00:00")
-    end_str = end_date.strftime("%Y-%m-%d 23:59:59")
-    raw = filter_transactions(start_str, end_str)
+def filter_transactions(start_date=None, end_date=None, type_=None, category=None):
+    start_str = start_date.strftime("%Y-%m-%d") if start_date else None
+    end_str = end_date.strftime("%Y-%m-%d") if end_date else None
+    raw = filter_advanced(start_str, end_str, type_, category)
     return [
         {
             "id": r[0],
@@ -64,9 +67,15 @@ def import_from_csv(filename):
                 description = row["description"]
                 date = row["date"]
                 tax_percent = float(row.get("tax_percent", 0))
-                datetime.strptime(date, "%Y-%m-%d")  # Validate
+                datetime.strptime(date, "%Y-%m-%d")
                 add_transaction(type_, amount, category, description, date, tax_percent)
                 imported.append(row)
             except Exception:
                 continue
     return imported
+
+def update_transaction_by_id(txn_id, type_, amount, category, description, date, tax_percent):
+    update_transaction(txn_id, type_, amount, category, description, date, tax_percent)
+
+def delete_transaction_by_id(txn_id):
+    delete_transaction(txn_id)

@@ -17,6 +17,7 @@ root.minsize(800, 500)
 type_var = tk.StringVar(value="income")
 category_var = tk.StringVar()
 tax_var = tk.StringVar(value="0")
+editing_txn_id = None
 
 # Helper functions
 def clear_inputs():
@@ -45,7 +46,7 @@ def load_transactions(data=None):
     for i, entry in enumerate(sorted(data, key=lambda x: x["date"], reverse=True), 1):
         amt = float(entry["amount"])
         tree.insert("", "end", values=(
-            i,
+            entry["id"],
             entry["type"].capitalize(),
             f"${amt:.2f}",
             entry["category"].capitalize(),
@@ -76,7 +77,6 @@ def submit_transaction():
         return
 
     description = description_entry.get().strip()
-
     date_str = date_entry.get()
     date_obj = parse_date(date_str)
     if not date_obj:
@@ -97,25 +97,118 @@ def submit_transaction():
     clear_inputs()
     load_transactions()
 
-def filter_transactions():
-    start_str = start_date_entry.get()
-    end_str = end_date_entry.get()
-
-    start_date = parse_date(start_str)
-    end_date = parse_date(end_str)
-    if not start_date or not end_date:
-        messagebox.showerror("Invalid Date", "Please enter valid start and end dates in DD-MM-YYYY format.")
+def start_edit_transaction():
+    global editing_txn_id
+    selected = tree.selection()
+    if not selected:
+        messagebox.showwarning("No selection", "Please select a transaction to edit.")
         return
-    if start_date > end_date:
+    values = tree.item(selected[0])["values"]
+    editing_txn_id = values[0]
+    type_var.set(values[1].lower())
+    amount_entry.delete(0, tk.END)
+    amount_entry.insert(0, values[2].replace("$", ""))
+    category_combo.set(values[3].lower())
+    description_entry.delete(0, tk.END)
+    description_entry.insert(0, values[4])
+    date_entry.delete(0, tk.END)
+    date_entry.insert(0, values[5])
+    tax_var.set(values[6].replace("%", ""))
+    submit_btn.config(text="Update Transaction", command=update_transaction)
+
+def update_transaction():
+    global editing_txn_id
+    if not editing_txn_id:
+        return
+    type_ = type_var.get()
+    try:
+        amount = float(amount_entry.get())
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messagebox.showerror("Invalid Input", "Please enter a valid positive amount.")
+        return
+
+    category = category_var.get().lower()
+    if not category:
+        messagebox.showerror("Invalid Input", "Please select or enter a category.")
+        return
+
+    description = description_entry.get().strip()
+    date_str = date_entry.get()
+    date_obj = parse_date(date_str)
+    if not date_obj:
+        messagebox.showerror("Invalid Date", "Please enter a valid date in DD-MM-YYYY format.")
+        return
+    date_db_str = date_obj.strftime("%Y-%m-%d")
+    try:
+        tax_percent = float(tax_entry.get())
+        if tax_percent < 0 or tax_percent > 100:
+            raise ValueError
+    except Exception:
+        messagebox.showerror("Invalid Input", "Please enter a valid tax percentage (0-100).")
+        return
+
+    logic.update_transaction_by_id(editing_txn_id, type_, amount, category, description, date_db_str, tax_percent)
+    messagebox.showinfo("Success", "Transaction updated.")
+    clear_inputs()
+    submit_btn.config(text="Add Transaction", command=submit_transaction)
+    editing_txn_id = None
+    load_transactions()
+
+def delete_selected_transaction():
+    selected = tree.selection()
+    if not selected:
+        messagebox.showwarning("No selection", "Please select a transaction to delete.")
+        return
+    confirm = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected transaction?")
+    if not confirm:
+        return
+    txn_id = tree.item(selected[0])["values"][0]
+    try:
+        logic.delete_transaction_by_id(txn_id)
+        messagebox.showinfo("Deleted", f"Transaction ID {txn_id} deleted.")
+        load_transactions()
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to delete: {e}")
+
+def filter_transactions():
+    start_str = start_date_entry.get().strip()
+    end_str = end_date_entry.get().strip()
+    filter_type = filter_type_var.get().strip().lower()
+    filter_cat = filter_category_var.get().strip().lower()
+
+    # Convert and validate dates
+    start_date = parse_date(start_str) if start_str and start_str != "DD-MM-YYYY" else None
+    end_date = parse_date(end_str) if end_str and end_str != "DD-MM-YYYY" else None
+
+    if start_date and end_date and start_date > end_date:
         messagebox.showerror("Invalid Date Range", "Start date must be before end date.")
         return
 
-    filter_type = filter_type_var.get()
-    filter_cat = filter_category_var.get().lower()
+    # Get all transactions
+    all_data = logic.get_all_transactions()
 
-    filtered = logic.filter_transactions(start_date, end_date, filter_type, filter_cat)
+    # Apply filters independently (OR logic if only one is filled, AND logic if multiple)
+    filtered = []
+    for txn in all_data:
+        match = True
+
+        txn_date = datetime.strptime(txn["date"], "%Y-%m-%d")
+
+        if start_date and end_date:
+            match = match and (start_date <= txn_date <= end_date)
+
+        if filter_type:
+            match = match and (txn["type"].lower() == filter_type)
+
+        if filter_cat:
+            match = match and (txn["category"].lower() == filter_cat)
+
+        if match:
+            filtered.append(txn)
+
     load_transactions(filtered)
-    # Store last filtered data for chart
     global last_filtered_data
     last_filtered_data = filtered
 
@@ -164,14 +257,12 @@ def show_chart():
         if entry["type"] == "expense":
             cat = entry["category"].lower()
             expenses[cat] = expenses.get(cat, 0) + float(entry["amount"])
-
     if not expenses:
         messagebox.showinfo("No Expenses", "No expense data available to plot.")
         return
 
     labels = [c.capitalize() for c in expenses.keys()]
     amounts = list(expenses.values())
-
     plt.style.use('ggplot')
     plt.figure(figsize=(8, 6))
     plt.pie(amounts, labels=labels, autopct="%1.1f%%", startangle=90)
@@ -179,6 +270,7 @@ def show_chart():
     plt.axis('equal')
     plt.tight_layout()
     plt.show()
+
 
 # UI Setup
 frame = ttk.Frame(root, padding=10)
@@ -239,6 +331,8 @@ expense_total_var = tk.StringVar(value="Total Expense: $0.00")
 ttk.Label(totals_frame, textvariable=income_total_var, font=("Segoe UI", 12, "bold")).pack(side=tk.LEFT, padx=10)
 ttk.Label(totals_frame, textvariable=expense_total_var, font=("Segoe UI", 12, "bold")).pack(side=tk.LEFT, padx=30)
 
+
+
 # Filter Frame
 filter_frame = ttk.Frame(root, padding=10)
 filter_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -286,6 +380,12 @@ import_btn.pack(side=tk.LEFT, padx=10)
 
 chart_btn = ttk.Button(bottom_frame, text="Show Expense Chart", command=show_chart)
 chart_btn.pack(side=tk.RIGHT, padx=10)
+
+edit_btn = ttk.Button(bottom_frame, text="Edit Selected", command=start_edit_transaction)
+edit_btn.pack(side=tk.LEFT, padx=10)
+
+delete_btn = ttk.Button(bottom_frame, text="Delete Selected", command=delete_selected_transaction)
+delete_btn.pack(side=tk.LEFT, padx=10)
 
 # Load initial data
 last_filtered_data = None

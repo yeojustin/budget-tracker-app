@@ -52,3 +52,46 @@ def reset_transactions():
     c.execute("DELETE FROM transactions")
     conn.commit()
     conn.close()
+
+def update_transaction(txn_id, type_, amount, category, description, date, tax_percent):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("""
+        UPDATE transactions 
+        SET type=?, amount=?, category=?, description=?, date=?, tax_percent=?
+        WHERE id=?
+    """, (type_, amount, category, description, date, tax_percent, txn_id))
+    conn.commit()
+    conn.close()
+
+def delete_transaction(txn_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
+    conn.commit()
+    conn.close()
+
+def filter_advanced(start_date=None, end_date=None, type_=None, category=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    query = "SELECT * FROM transactions WHERE 1=1"
+    params = []
+
+    if start_date:
+        query += " AND date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND date <= ?"
+        params.append(end_date)
+    if type_:
+        query += " AND type = ?"
+        params.append(type_)
+    if category:
+        query += " AND category = ?"
+        params.append(category)
+
+    query += " ORDER BY date DESC"
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    return rows
