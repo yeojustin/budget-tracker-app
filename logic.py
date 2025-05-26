@@ -64,7 +64,7 @@ def import_from_csv(filename):
                 description = row["description"]
                 date = row["date"]
                 tax_percent = float(row.get("tax_percent", 0))
-                datetime.strptime(date, "%Y-%m-%d %H:%M:%S")  # Validate
+                datetime.strptime(date, "%Y-%m-%d")  # Validate
                 add_transaction(type_, amount, category, description, date, tax_percent)
                 imported.append(row)
             except Exception:
