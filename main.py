@@ -82,7 +82,7 @@ def submit_transaction():
     if not date_obj:
         messagebox.showerror("Invalid Date", "Please enter a valid date in DD-MM-YYYY format.")
         return
-    date_db_str = date_obj.strftime("%Y-%m-%d")
+    date_db_str = date_obj.strftime("%Y-%m-%d") 
 
     try:
         tax_percent = float(tax_entry.get())
